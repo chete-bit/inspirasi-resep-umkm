@@ -33,6 +33,16 @@ interface LangkahItem {
   uploadingFoto?: boolean;
 }
 
+// HELPER FUNCTION: GENERATE SLUG RAMAH SEO
+function generateSlug(text: string) {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 export default function TambahResepPage() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -268,7 +278,7 @@ export default function TambahResepPage() {
   const saranHargaJual =
     marginNum < 100 ? hppPerPorsi / (1 - marginNum / 100) : 0;
 
-  // SUBMIT RESEP KE SUPABASE
+  // SUBMIT RESEP KE SUPABASE (SESUAI SCHEMA TABEL SUPABASE)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -280,12 +290,17 @@ export default function TambahResepPage() {
     setIsSubmitting(true);
 
     try {
-      // 1. Simpan Header Resep
+      // 1. Generate Slug unik SEO dari Nama Resep
+      const baseSlug = generateSlug(namaResep.trim());
+      const uniqueSlug = `${baseSlug}-${Math.random().toString(36).substring(2, 6)}`;
+
+      // 2. Simpan Header Resep ke tabel 'resep'
       const { data: resepData, error: resepError } = await supabase
         .from("resep")
         .insert({
           user_id: currentUser.id,
           nama_resep: namaResep.trim(),
+          slug: uniqueSlug, // Kolom 'slug'
           deskripsi: deskripsi.trim(),
           kategori: kategori,
           foto_url: fotoUrl || null,
@@ -293,20 +308,21 @@ export default function TambahResepPage() {
           target_margin_persen: marginNum,
           is_public: isPublic,
         })
-        .select("id")
+        .select("id, slug")
         .single();
 
       if (resepError) throw resepError;
 
       const newResepId = resepData.id;
 
-      // 2. Simpan Komposisi Bahan
+      // 3. Simpan Komposisi Bahan ke tabel 'komposisi_resep'
+      // Sesuai nama kolom Supabase: jumlah_dipakai, satuan_beli, harga_beli, jumlah_pakai, satuan_pakai, total_biaya
       const komposisiToInsert = bahanList
         .filter((b) => b.namaBahan.trim() !== "")
         .map((b) => ({
           resep_id: newResepId,
           nama_bahan: b.namaBahan.trim(),
-          jumlah_beli: parseFloat(b.jumlahBeli) || 0,
+          jumlah_dipakai: parseFloat(b.jumlahBeli) || 0, // Disesuaikan dengan schema Supabase!
           satuan_beli: b.satuanBeli,
           harga_beli: parseFloat(b.hargaBeli) || 0,
           jumlah_pakai: parseFloat(b.jumlahPakai) || 0,
@@ -322,7 +338,7 @@ export default function TambahResepPage() {
         if (bahanError) throw bahanError;
       }
 
-      // 3. Simpan Langkah Pembuatan
+      // 4. Simpan Langkah Pembuatan ke tabel 'langkah_memasak'
       const langkahToInsert = langkahList
         .filter((l) => l.instruksi.trim() !== "")
         .map((l, idx) => ({
@@ -341,7 +357,8 @@ export default function TambahResepPage() {
       }
 
       alert("Resep berhasil dibuat dan dipublikasikan!");
-      router.push(`/resep/${newResepId}`);
+      // Redirect menggunakan SLUG baru
+      router.push(`/resep/${resepData.slug || uniqueSlug}`);
     } catch (err: any) {
       alert("Gagal menyimpan resep: " + err.message);
     } finally {
