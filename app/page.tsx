@@ -693,7 +693,7 @@ export default function HomePage() {
                       </div>
 
                       <Link
-                        href={`/resep/${item.id}`}
+                        href={`/resep/${item.slug || item.id}`}
                         className="w-full bg-black hover:bg-gray-800 text-white text-xs font-bold py-2.5 rounded-2xl transition flex items-center justify-center gap-1.5 mt-2"
                       >
                         Lihat Resep <ArrowRight className="w-3.5 h-3.5" />

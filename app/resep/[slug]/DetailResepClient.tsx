@@ -20,8 +20,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-export default function DetailResepClient({ id }: { id: string }) {
-  const resepId = id;
+export default function DetailResepClient({ slug }: { slug: string }) {
+  const slugParam = slug;
   const router = useRouter();
 
   const [resep, setResep] = useState<any>(null);
@@ -49,10 +49,10 @@ export default function DetailResepClient({ id }: { id: string }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (resepId) {
+    if (slugParam) {
       fetchDetailResep();
     }
-  }, [resepId]);
+  }, [slugParam]);
 
   async function fetchDetailResep() {
     try {
@@ -61,24 +61,36 @@ export default function DetailResepClient({ id }: { id: string }) {
       } = await supabase.auth.getUser();
       setCurrentUser(user);
 
-      // 1. Ambil Resep Utama
-      const { data: dataResep } = await supabase
-        .from("resep")
-        .select(
-          `
+      // Cek apakah parameter berupa UUID lama atau Slug teks baru
+      const isUuid =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          slugParam,
+        );
+
+      let query = supabase.from("resep").select(`
           *,
           profil_pengguna:user_id (nama_lengkap, foto_profil, username)
-        `,
-        )
-        .eq("id", resepId)
-        .single();
+        `);
 
-      if (dataResep) {
-        setResep(dataResep);
-        setLikeCount(dataResep.likes_count || 0);
+      if (isUuid) {
+        query = query.eq("id", slugParam);
+      } else {
+        query = query.eq("slug", slugParam);
       }
 
-      // 2. Ambil Komposisi Bahan
+      const { data: dataResep, error: errResep } = await query.single();
+
+      if (errResep || !dataResep) {
+        console.error("Resep tidak ditemukan:", errResep);
+        setIsLoading(false);
+        return;
+      }
+
+      setResep(dataResep);
+      setLikeCount(dataResep.likes_count || 0);
+      const resepId = dataResep.id;
+
+      // 2. Ambil Komposisi Bahan berdasarkan resep_id
       const { data: dataKomposisi } = await supabase
         .from("komposisi_resep")
         .select("*")
@@ -86,7 +98,7 @@ export default function DetailResepClient({ id }: { id: string }) {
 
       if (dataKomposisi) setKomposisi(dataKomposisi);
 
-      // 3. Ambil Langkah Memasak
+      // 3. Ambil Langkah Memasak berdasarkan resep_id
       const { data: dataLangkah } = await supabase
         .from("langkah_memasak")
         .select("*")
@@ -96,8 +108,8 @@ export default function DetailResepClient({ id }: { id: string }) {
       if (dataLangkah) setLangkahList(dataLangkah);
 
       // 4. Ambil Komentar & CookSnap
-      await fetchKomentar();
-      await fetchCookSnap();
+      await fetchKomentar(resepId);
+      await fetchCookSnap(resepId);
 
       // 5. Cek Status Bookmark & Like
       if (user && dataResep) {
@@ -121,7 +133,7 @@ export default function DetailResepClient({ id }: { id: string }) {
     }
   }
 
-  async function fetchKomentar() {
+  async function fetchKomentar(resepId: string) {
     const { data } = await supabase
       .from("komentar_resep")
       .select(
@@ -136,8 +148,7 @@ export default function DetailResepClient({ id }: { id: string }) {
     if (data) setKomentarList(data);
   }
 
-  // MENGAMBIL DAFTAR COOKSNAP DENGAN PROFIL USER
-  async function fetchCookSnap() {
+  async function fetchCookSnap(resepId: string) {
     try {
       const { data, error } = await supabase
         .from("cook_snaps")
@@ -185,7 +196,7 @@ export default function DetailResepClient({ id }: { id: string }) {
     await supabase
       .from("resep")
       .update({ likes_count: newCount })
-      .eq("id", resepId);
+      .eq("id", resep.id);
   };
 
   // FUNGSI UTAMA: Simpan Resep (Bookmark) ke Koleksi Dapurku
@@ -201,6 +212,7 @@ export default function DetailResepClient({ id }: { id: string }) {
         user_id: currentUser.id,
         resep_asal_id: resep.id,
         nama_resep: resep.nama_resep,
+        slug: `${resep.slug}-saved-${Math.random().toString(36).substring(2, 6)}`,
         deskripsi: resep.deskripsi,
         foto_url: resep.foto_url,
         hasil_porsi: resep.hasil_porsi,
@@ -225,13 +237,13 @@ export default function DetailResepClient({ id }: { id: string }) {
 
     try {
       await supabase.from("komentar_resep").insert({
-        resep_id: resepId,
+        resep_id: resep.id,
         user_id: currentUser.id,
         isi_komentar: isiKomentar.trim(),
       });
 
       setIsiKomentar("");
-      await fetchKomentar();
+      await fetchKomentar(resep.id);
     } catch (err: any) {
       alert("Gagal mengirim komentar: " + err.message);
     }
@@ -285,7 +297,7 @@ export default function DetailResepClient({ id }: { id: string }) {
     setIsSubmittingCookSnap(true);
     try {
       const { error } = await supabase.from("cook_snaps").insert({
-        resep_id: resepId,
+        resep_id: resep.id,
         user_id: currentUser.id,
         ulasan: cookSnapText,
         foto_url: cookSnapFotoUrl || null,
@@ -298,7 +310,7 @@ export default function DetailResepClient({ id }: { id: string }) {
       setCookSnapFotoUrl("");
       setIsCookSnapModalOpen(false);
 
-      await fetchCookSnap();
+      await fetchCookSnap(resep.id);
     } catch (err: any) {
       alert("Gagal membagikan CookSnap: " + err.message);
     } finally {

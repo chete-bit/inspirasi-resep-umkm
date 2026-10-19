@@ -4,7 +4,7 @@ import DetailResepClient from "./DetailResepClient";
 export default function DetailResepPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 }) {
   return (
     <Suspense
@@ -22,8 +22,8 @@ export default function DetailResepPage({
 async function DetailResepWrapper({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 }) {
   const resolvedParams = await params;
-  return <DetailResepClient id={resolvedParams.id} />;
+  return <DetailResepClient slug={resolvedParams.slug} />;
 }
