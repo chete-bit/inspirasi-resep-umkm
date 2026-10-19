@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useParams } from "next/navigation";
 import {
@@ -11,8 +11,6 @@ import {
   BookOpen,
   Activity,
   Users,
-  Camera,
-  CheckCircle2,
   ArrowRight,
   Loader2,
   Save,
@@ -20,7 +18,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-export default function CreatorProfilePage() {
+function CreatorProfileContent() {
   const router = useRouter();
   const params = useParams();
   const usernameParam = params?.username as string;
@@ -38,7 +36,6 @@ export default function CreatorProfilePage() {
   const [resepSayaList, setResepSayaList] = useState<any[]>([]);
   const [resepTersimpanList, setResepTersimpanList] = useState<any[]>([]);
   const [aktivitasList, setAktivitasList] = useState<any[]>([]);
-  const [followingList, setFollowingList] = useState<any[]>([]);
 
   // Statistik
   const [totalResep, setTotalResep] = useState(0);
@@ -86,7 +83,6 @@ export default function CreatorProfilePage() {
         await profileQuery.maybeSingle();
 
       if (profErr || !profData) {
-        // Fallback jika user mengakses profilnya sendiri lewat shortcut "me" atau ID
         if (user && (usernameParam === "me" || usernameParam === user.id)) {
           const { data: selfProf } = await supabase
             .from("profil_pengguna")
@@ -300,7 +296,7 @@ export default function CreatorProfilePage() {
             </div>
           </div>
 
-          {/* Tombol Edit Profil (Hanya muncul jika profil sendiri) */}
+          {/* Tombol Edit Profil */}
           {isOwnProfile && (
             <button
               onClick={() => setIsEditModalOpen(true)}
@@ -386,16 +382,12 @@ export default function CreatorProfilePage() {
 
         {/* KONTEN BERDASARKAN TAB AKTIF */}
         <div className="space-y-4">
-          {/* TAB 1: RESEP SAYA */}
           {activeTab === "resep_saya" && (
             <div>
               {resepSayaList.length === 0 ? (
                 <div className="bg-white p-12 rounded-3xl border border-gray-200/80 text-center space-y-3">
                   <p className="text-sm font-bold text-gray-800">
                     Belum ada resep yang dibagikan.
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    Mulai buat resep pertama Anda untuk dibagikan ke komunitas!
                   </p>
                   {isOwnProfile && (
                     <Link
@@ -450,17 +442,12 @@ export default function CreatorProfilePage() {
             </div>
           )}
 
-          {/* TAB 2: TERSIMPAN (BOOKMARK) */}
           {activeTab === "tersimpan" && (
             <div>
               {resepTersimpanList.length === 0 ? (
                 <div className="bg-white p-12 rounded-3xl border border-gray-200/80 text-center space-y-3">
                   <p className="text-sm font-bold text-gray-800">
                     Belum ada resep yang tersimpan.
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    Jelajahi beranda dan klik tombol "Simpan Resep" pada resep
-                    menarik!
                   </p>
                 </div>
               ) : (
@@ -485,9 +472,6 @@ export default function CreatorProfilePage() {
                         <h4 className="font-extrabold text-sm text-gray-900 line-clamp-1">
                           {item.nama_resep}
                         </h4>
-                        <p className="text-[11px] text-gray-500 line-clamp-1">
-                          Oleh: {item.sumber_penulis || "Komunitas"}
-                        </p>
                         <div className="flex items-center justify-between pt-1">
                           <span className="text-[11px] font-bold text-emerald-600">
                             Porsi {item.hasil_porsi || 1}
@@ -507,7 +491,6 @@ export default function CreatorProfilePage() {
             </div>
           )}
 
-          {/* TAB 3: AKTIVITAS */}
           {activeTab === "aktivitas" && (
             <div className="bg-white rounded-3xl border border-gray-200/80 p-6 shadow-sm space-y-4">
               <h3 className="font-extrabold text-sm text-gray-900">
@@ -528,13 +511,6 @@ export default function CreatorProfilePage() {
                       <div className="space-y-1 flex-1">
                         <p className="font-bold text-gray-900">{act.text}</p>
                         <p className="text-gray-600 italic">{act.detail}</p>
-                        <p className="text-[10px] text-gray-400">
-                          {new Date(act.time).toLocaleDateString("id-ID", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          })}
-                        </p>
                       </div>
                     </div>
                   ))}
@@ -543,15 +519,13 @@ export default function CreatorProfilePage() {
             </div>
           )}
 
-          {/* TAB 4: MENGIKUTI (FOLLOWING) */}
           {activeTab === "mengikuti" && (
             <div className="bg-white rounded-3xl border border-gray-200/80 p-6 shadow-sm space-y-4">
               <h3 className="font-extrabold text-sm text-gray-900">
                 Kreator yang Diikuti
               </h3>
               <p className="text-xs text-gray-400">
-                Fitur daftar following akan menampilkan kreator favorit Anda di
-                sini.
+                Fitur daftar following akan menampilkan kreator favorit Anda.
               </p>
             </div>
           )}
@@ -561,7 +535,7 @@ export default function CreatorProfilePage() {
       {/* MODAL EDIT PROFIL */}
       {isEditModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 md:p-8 space-y-6 shadow-xl border border-gray-100 animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 md:p-8 space-y-6 shadow-xl border border-gray-100">
             <div className="flex items-center justify-between">
               <h3 className="font-extrabold text-lg text-gray-900">
                 Edit Profil Kreator
@@ -609,7 +583,6 @@ export default function CreatorProfilePage() {
                   value={editBio}
                   onChange={(e) => setEditBio(e.target.value)}
                   rows={3}
-                  placeholder="Ceritakan sedikit tentang usaha kuliner atau keahlian Anda..."
                   className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-xs p-3.5 rounded-xl outline-none focus:bg-white focus:border-black font-medium resize-none"
                 />
               </div>
@@ -640,5 +613,19 @@ export default function CreatorProfilePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CreatorProfilePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#F4F5F7] flex items-center justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+        </div>
+      }
+    >
+      <CreatorProfileContent />
+    </Suspense>
   );
 }
