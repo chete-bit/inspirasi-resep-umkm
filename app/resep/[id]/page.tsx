@@ -14,12 +14,12 @@ export default function DetailResepPage({
         </div>
       }
     >
-      <DetailResepContent params={params} />
+      <DetailResepWrapper params={params} />
     </Suspense>
   );
 }
 
-async function DetailResepContent({
+async function DetailResepWrapper({
   params,
 }: {
   params: Promise<{ id: string }>;
