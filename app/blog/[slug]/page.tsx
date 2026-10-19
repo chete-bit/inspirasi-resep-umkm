@@ -1,16 +1,14 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+export const dynamic = "force-dynamic";
+
+import { useState, useEffect, use, Suspense } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Calendar, User, Loader2, BookOpen } from "lucide-react";
+import { ArrowLeft, Calendar, Loader2 } from "lucide-react";
 import Link from "next/link";
 
-export default function BlogDetailPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
+function BlogDetailContent({ params }: { params: Promise<{ slug: string }> }) {
   const resolvedParams = use(params);
   const slugParam = resolvedParams.slug;
   const router = useRouter();
@@ -125,5 +123,23 @@ export default function BlogDetailPage({
         </article>
       </div>
     </div>
+  );
+}
+
+export default function BlogDetailPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+        </div>
+      }
+    >
+      <BlogDetailContent params={params} />
+    </Suspense>
   );
 }
