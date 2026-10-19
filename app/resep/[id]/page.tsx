@@ -1,13 +1,11 @@
 import { Suspense } from "react";
 import DetailResepClient from "./DetailResepClient";
 
-export default async function DetailResepPage({
+export default function DetailResepPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const resolvedParams = await params;
-
   return (
     <Suspense
       fallback={
@@ -16,7 +14,16 @@ export default async function DetailResepPage({
         </div>
       }
     >
-      <DetailResepClient id={resolvedParams.id} />
+      <DetailResepContent params={params} />
     </Suspense>
   );
+}
+
+async function DetailResepContent({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const resolvedParams = await params;
+  return <DetailResepClient id={resolvedParams.id} />;
 }
